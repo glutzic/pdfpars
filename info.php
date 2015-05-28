@@ -34,6 +34,7 @@ $data['nazwa'] = $nazwa ? $nazwa->innertext : '';
 
 //Format
 $data['nazwa'] = str_replace(" - kod " . $sku, "", $data['nazwa']);
+$data['nazwa'] = str_replace("kod " . $sku, "", $data['nazwa']);
 $data['nazwa'] = str_replace(" - " . $sku, "", $data['nazwa']);
 $data['nazwa'] = trim($data['nazwa']);
 /**
