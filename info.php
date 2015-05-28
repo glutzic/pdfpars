@@ -34,6 +34,7 @@ $data['nazwa'] = $nazwa ? $nazwa->innertext : '';
 
 //Format
 $data['nazwa'] = str_replace(" - kod " . $sku, "", $data['nazwa']);
+$data['nazwa'] = str_replace(" - " . $sku, "", $data['nazwa']);
 $data['nazwa'] = trim($data['nazwa']);
 /**
  * Opis
@@ -42,8 +43,9 @@ $data['opis'] = array();
 
 foreach ($dom->find('div.product__desc__content p') as $pEl) {
     $inner = $pEl->innertext;
-    $opis = preg_replace('/[ ]*<br[ \/><]*/i', "\n", $inner);
+    $opis = preg_replace('/[ ]*[< ]*br[ \/><]*/i', "\n", $inner);
     $opis = preg_replace('/[ ]*&#8211;[ ]*/i', '-', $opis);
+    $opis = str_replace("\n\n", "\n", $opis);
     //$opis = str_replace(array("<br /> ", "<br< "), "\n", $inner);
     //$opis = str_replace("&#8211; ", "-", $opis);
     $opis = trim(htmlspecialchars_decode($opis));
@@ -62,12 +64,25 @@ function parseWymiary($tytul, $wartosc, &$data)
     /**
      * Wymiary
      */
-    $isWymiar = strpos($tytul, "wymiar") !== FALSE || strpos($tytul, "rozmiar") !== FALSE || strpos($tytul, "mm") !== FALSE;
+
+    if (empty($data['wymiary'])) {
+        $data['wymiary'] = array();
+    }
+
+    if (empty($data['moc'])) {
+        $data['moc'] = 0;
+    }
+
+    $matches = array();
+    preg_match_all('!\d+!', $wartosc, $matches);
+
+    $isWysokosc = count($matches[0]) && strpos($tytul, "wysokość") !== FALSE;
+    $isSzerokosc = count($matches[0]) && strpos($tytul, "szerokość") !== FALSE;
+    $isDlugosc = count($matches[0]) && (strpos($tytul, "głębokość") !== FALSE || strpos($tytul, "długość") !== FALSE);
+    $isMoc = count($matches[0]) && (strpos($tytul, "moc") !== FALSE || strpos($tytul, "(w)") !== FALSE);
+    $isWymiar = strpos($tytul, "wymiar") !== FALSE || strpos($tytul, "rozmiar") !== FALSE && !$isWysokosc && !$isSzerokosc && !$isDlugosc && !$isMoc;
 
     if ($isWymiar) {
-        $matches = array();
-        preg_match_all('!\d+!', $wartosc, $matches);
-
         if (count($matches[0]) == 3) {
             $data['wymiary'] = array(
                 'dl' => $matches[0][0],
@@ -84,6 +99,23 @@ function parseWymiary($tytul, $wartosc, &$data)
                 'szer' => $matches[0][1],
             );
         }
+    }
+
+    if ($isWysokosc) {
+        $data['wymiary']['wys'] = $matches[0][0];
+    }
+
+    if ($isSzerokosc) {
+        $data['wymiary']['szer'] = $matches[0][0];
+    }
+
+    if ($isDlugosc) {
+        $data['wymiary']['dl'] = $matches[0][0];
+    }
+
+    if ($isMoc) {
+        $moc = number_format(intval($matches[0][0]) / 1000, 1);
+        $data['moc'] = $moc;
     }
 }
 
