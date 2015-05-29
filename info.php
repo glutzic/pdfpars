@@ -44,6 +44,12 @@ if (!$data['href']) {
 $urlquery = $data['href'];
 $dom = HtmlDomParser::file_get_html($urlquery);
 
+
+/**
+ * SKU
+ */
+$data['sku'] = $sku;
+
 /**
  * Nazwa
  */
