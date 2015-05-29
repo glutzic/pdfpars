@@ -16,7 +16,25 @@ $urlquery = "http://www.hendi.pl/product/search.html?query={$sku}&category_id=&l
 //$searchContent = file_get_contents($urlquery);
 $dom = HtmlDomParser::file_get_html($urlquery);
 
-$data['href'] = $baseUrl . $dom->find('ul.products_list li a', 0)->href;
+/**
+ * Znajdz link po wyszukaniu produktow po SKU
+ */
+
+$links = $dom->find('ul.products_list li a');
+$linksCount = count($links);
+foreach ($links as $key => $link) {
+    if (strpos($link->href, $sku) !== FALSE) {
+        $data['href'] = $baseUrl . $link->href;
+        break;
+    }
+
+    if ($key == $linksCount - 1) {
+        $data['href'] = $baseUrl . $link->href;
+        break;
+    }
+}
+
+//$data['href'] = $baseUrl . $dom->find('ul.products_list li a', 0)->href;
 
 if (!$data['href']) {
     echo json_encode($data);
@@ -47,8 +65,6 @@ foreach ($dom->find('div.product__desc__content p') as $pEl) {
     $opis = preg_replace('/[ ]*[< ]*br[ \/><]*/i', "\n", $inner);
     $opis = preg_replace('/[ ]*&#8211;[ ]*/i', '-', $opis);
     $opis = str_replace("\n\n", "\n", $opis);
-    //$opis = str_replace(array("<br /> ", "<br< "), "\n", $inner);
-    //$opis = str_replace("&#8211; ", "-", $opis);
     $opis = trim(htmlspecialchars_decode($opis));
     $data['opis'][] = $opis;
 }
@@ -81,7 +97,9 @@ function parseWymiary($tytul, $wartosc, &$data)
     $isSzerokosc = count($matches[0]) && strpos($tytul, "szerokość") !== FALSE;
     $isDlugosc = count($matches[0]) && (strpos($tytul, "głębokość") !== FALSE || strpos($tytul, "długość") !== FALSE);
     $isMoc = count($matches[0]) && (strpos($tytul, "moc") !== FALSE || strpos($tytul, "(w)") !== FALSE);
+    $isNapiecie = count($matches[0]) == 1 && (strpos($tytul, "napięcie") !== FALSE || strpos($tytul, "(V)") !== FALSE || strpos($tytul, "(v)") !== FALSE);
     $isWymiar = strpos($tytul, "wymiar") !== FALSE || strpos($tytul, "rozmiar") !== FALSE && !$isWysokosc && !$isSzerokosc && !$isDlugosc && !$isMoc;
+    $pojedynczeWymiary = array();
 
     if ($isWymiar) {
         if (count($matches[0]) == 3) {
@@ -103,20 +121,36 @@ function parseWymiary($tytul, $wartosc, &$data)
     }
 
     if ($isWysokosc) {
-        $data['wymiary']['wys'] = $matches[0][0];
+        $pojedynczeWymiary['wys'] = $matches[0][0];
     }
 
     if ($isSzerokosc) {
-        $data['wymiary']['szer'] = $matches[0][0];
+        $pojedynczeWymiary['szer'] = $matches[0][0];
     }
 
     if ($isDlugosc) {
-        $data['wymiary']['dl'] = $matches[0][0];
+        $pojedynczeWymiary['dl'] = $matches[0][0];
     }
 
+    $data['wymiary'] = array_merge($pojedynczeWymiary, $data['wymiary']);
+
     if ($isMoc) {
-        $moc = number_format(intval($matches[0][0]) / 1000, 1);
-        $data['moc'] = $moc;
+        // Usun czesc 2x
+        if (count($matches[0]) == 2) {
+            $matches[0][0] =  $matches[0][1];
+        }
+
+        if (strlen($matches[0][0]) >= 3 && strpos($matches[0][0], '.') === false) {
+            $moc = number_format(intval($matches[0][0]) / 1000, 2);
+        } elseif (strpos($matches[0][0], '.') !== false) {
+            $moc = floatval($matches[0][0]);
+        }
+
+        $data['moc'] = isset($moc) ? $moc : 0;
+    }
+
+    if ($isNapiecie) {
+        $data['napiecie'] = intval($matches[0][0]);
     }
 }
 
